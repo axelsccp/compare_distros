@@ -1,0 +1,155 @@
+---
+- name: Build and run containers
+
+  hosts: all
+
+#  vars: 
+#    - ../vars/containers.yaml
+
+  tasks:
+    - name: inclui arquivo de variáveis
+      include_vars:
+        file: distros.yaml
+        name: distros
+
+    - name: cria diretório tempo_execucao_tmp
+      file:
+        path: /home/ubuntu/compara_distros/ansible/tempo_execucao_tmp
+        state: directory
+
+    - name: sobe containers centos
+      shell: docker run -d --rm --name=centos{{ item }} centos:{{ item }} tail -f /dev/null
+      loop: "{{ distros.centos }}"
+    
+    - name: copia arquivos adicionais para o container
+      shell: docker cp ./ centos{{ item }}:/root/
+      loop: "{{ distros.centos }}"
+
+    - name: atualiza e instala binarios
+      shell: docker exec -t centos{{ item }} sh /root/yum-install 
+      loop: "{{ distros.centos }}"
+      loop_control:
+        label: "{{ distros.centos }}"
+      ignore_errors: yes
+           
+    - name: executa scripts
+      shell: /usr/bin/time -f "%e" --output=/home/ubuntu/compara_distros/ansible/tempo_execucao_tmp/centos{{ item }} docker exec centos{{ item }} sh /root/script_execution
+      loop: "{{ distros.centos }}"
+      loop_control:
+        label: "{{ distros.centos }}"
+
+    - name: formata saída com tempo de execução
+      shell: /home/ubuntu/compara_distros/ansible/sed_dot.sh
+
+    - name: derruba os containers após a execução
+      shell: docker kill centos{{ item }}
+      loop: "{{ distros.centos }}"
+
+    - name: sobe container ubuntu
+      shell: docker run -d --rm --name=ubuntu{{ item }} ubuntu:{{ item }} tail -f /dev/null
+      loop: "{{ distros.ubuntu }}"
+
+    - name: copia arquivos adicionais para o container
+      shell: docker cp ./ ubuntu{{ item }}:/root/
+      loop: "{{ distros.ubuntu }}"
+
+    - name: atualiza e instala binarios
+      shell: docker exec ubuntu{{ item }} sh /root/apt-install 
+      loop: "{{ distros.ubuntu }}"
+      loop_control:
+        label: "{{ distros.ubuntu }}"
+      ignore_errors: yes
+           
+    - name: executa scripts
+      shell: /usr/bin/time -f "%e" --output=/home/ubuntu/compara_distros/ansible/tempo_execucao_tmp/ubuntu{{ item }} docker exec ubuntu{{ item }} sh /root/script_execution 
+      loop: "{{ distros.ubuntu }}"
+      loop_control:
+        label: "{{ distros.ubuntu }}"
+
+    - name: formata saída com tempo de execução
+      shell: /home/ubuntu/compara_distros/ansible/sed_dot.sh
+           
+    - name: derruba os containers após a execução
+      shell: docker kill ubuntu{{ item }}
+      loop: "{{ distros.ubuntu }}"
+
+    - name: sobe container fedora
+      shell: docker run -d --rm --name=fedora{{ item }} fedora:{{ item }} tail -f /dev/null
+      loop: "{{ distros.fedora }}"
+
+    - name: copia arquivos adicionais para o container
+      shell: docker cp ./ fedora{{ item }}:/root/
+      loop: "{{ distros.fedora }}"
+
+    - name: instala binarios
+      shell: docker exec fedora{{ item }} sh /root/yum-install 
+      loop: "{{ distros.fedora }}"
+      loop_control:
+        label: "{{ distros.fedora }}"
+      ignore_errors: yes
+           
+    - name: executa scripts
+      shell: /usr/bin/time -f "%e" --output=/home/ubuntu/compara_distros/ansible/tempo_execucao_tmp/fedora{{ item }} docker exec fedora{{ item }} sh /root/script_execution 
+      loop: "{{ distros.fedora }}"
+      loop_control:
+        label: "{{ distros.fedora }}"
+
+    - name: formata saída com tempo de execução
+      shell: /home/ubuntu/compara_distros/ansible/sed_dot.sh
+
+    - name: derruba os containers após a execução
+      shell: docker kill fedora{{ item }}
+      loop: "{{ distros.fedora }}"
+
+    - name: sobe os container debian
+      shell: docker run -d --rm --name=debian{{ item }} debian:{{ item }} tail -f /dev/null
+      loop: "{{ distros.debian }}"
+
+    - name: copia arquivos adicionais para o container
+      shell: docker cp ./ debian{{ item }}:/root/
+      loop: "{{ distros.debian }}"
+      loop_control:
+        label: "{{ distros.debian }}"
+
+    - name: instala binarios
+      shell: docker exec debian{{ item }} sh /root/apt-install
+      loop: "{{ distros.debian }}"
+      loop_control:
+        label: "{{ distros.debian }}"
+      ignore_errors: true
+           
+    - name: executa scripts
+      shell: /usr/bin/time -f "%e" --output=/home/ubuntu/compara_distros/ansible/tempo_execucao_tmp/debian{{ item }} docker exec debian{{ item }} sh /root/script_execution 
+      loop: "{{ distros.debian }}"
+      loop_control:
+        label: "{{ distros.debian }}"
+
+    - name: formata saída com tempo de execução
+      shell: /home/ubuntu/compara_distros/ansible/sed_dot.sh
+           
+    - name: derruba os containers após a execução
+      shell: docker kill debian{{ item }}
+      loop: "{{ distros.debian }}"
+
+    - name: adiciona novos tempos de execução ao netdata
+      shell: mv /home/ubuntu/compara_distros/ansible/tempo_execucao_tmp/* /home/ubuntu/compara_distros/ansible/tempo_execucao/
+
+    - name: cria diretório tempo_execucao_tmp
+      file:
+        path: /home/ubuntu/compara_distros/ansible/tempo_execucao_tmp
+        state: absent
+#    - name: Faz o build das imagens junto do comando time caso gerado seja individual
+#      shell: /usr/bin/time -f "%e" docker build -t {{ item }}/rundeck -f Dockerfile.{{ item }} .
+#      args: 
+#        chdir: "{{ dockerfiles }}"
+#      loop: "{{ versao.stdout_lines }}"
+#      register: build_time
+#      when:  count.stdout  == "1"
+
+#    - name: Faz o build das imagens junto do time caso gerado de containers tenha sido executado como all
+#      shell: /usr/bin/time -f "%e" docker build -t {{ item }}/rundeck -f {{ dockerfiles }}/Dockerfile.{{ item }} .
+#      args:
+#        chdir: "{{ dockerfiles }}"
+#      loop: "{{ versao.stdout_lines }}"
+#      register: build_time_all
+#      when:  count.stdout  >= "2"

@@ -1,0 +1,7 @@
+tempo_execucao/*
+apt-install
+yum-install
+machineip
+*.retry
+script_execution
+hpc/

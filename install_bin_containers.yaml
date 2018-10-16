@@ -1,0 +1,15 @@
+---
+- name: Build and run containers
+
+  hosts: all
+
+#  vars:
+#    - ../vars/containers.yaml
+
+  tasks:
+
+    - name: Executa o binário dentro do container 
+        package:
+          name: "{{ item }}"
+          state: present
+        loop: "{{ bin-install }}"
